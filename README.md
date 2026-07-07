@@ -1,0 +1,33 @@
+# Antigravity Slack Bridge
+
+A native open-source plugin for the [Antigravity CLI](https://github.com/google-antigravity/antigravity-cli) that enables the **Direct Brain Architecture**: seamless, bidirectional Slack communication and Text-to-Speech (TTS) between autonomous agents and human operators.
+
+## Features
+- **Persistent Connection**: Uses Slack Socket Mode to bypass firewalls and maintain a 24/7 connection.
+- **Instant Wakeups**: The `waiter.js` polling architecture guarantees instant agent wakeups without orphaned connections.
+- **Audio TTS**: Forwards agent responses as native Slack audio attachments.
+- **Mobile-Friendly Artifacts**: Uploads implementation plans using `.txt` extensions to bypass Slack Mobile's broken Markdown renderer.
+- **Vision Ingestion**: Automatically downloads user-attached images and forwards the absolute paths to the agent for visual analysis.
+
+## Setup
+
+1. Install this plugin into your Antigravity workspace:
+   ```bash
+   agy plugin install https://github.com/OVS-Intelligence/agy-slack-bridge
+   ```
+2. Create a Slack App in your workspace and enable **Socket Mode**.
+3. Obtain your App Token (`xapp-...`) and Bot Token (`xoxb-...`).
+4. Set the following environment variables in a `.env` file at the root of your workspace:
+   ```env
+   SLACK_APP_TOKEN=xapp-...
+   SLACK_API_KEY=xoxb-...
+   SLACK_TTS_CHANNEL=C01234567
+   ```
+5. Run the background daemon:
+   ```bash
+   node plugins/agy-slack-bridge/scripts/daemon.js
+   ```
+
+## Usage
+
+The included `slack-bridge` skill automatically instructs your agents to use the Waiter script (`scripts/waiter.js`) to pause execution and the Emitter scripts (`scripts/end_of_turn_tts.py`) to send audio responses.

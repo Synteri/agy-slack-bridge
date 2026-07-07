@@ -1,0 +1,10 @@
+{
+  "name": "agy-slack-bridge",
+  "version": "1.0.0",
+  "description": "An Antigravity plugin enabling the Direct Brain architecture (bidirectional Slack communication and TTS).",
+  "author": "OVS Intelligence LLC",
+  "license": "MIT",
+  "engines": {
+    "antigravity": ">=1.0.0"
+  }
+}
