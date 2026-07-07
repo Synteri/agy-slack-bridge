@@ -84,6 +84,12 @@ const server = http.createServer((req, res) => {
             res.writeHead(200, { 'Content-Type': 'text/plain' });
             res.end(msg);
         } else {
+            // Close any existing pending responses to prevent overlapping Waiters
+            while (pendingResponses.length > 0) {
+                const oldRes = pendingResponses.shift();
+                oldRes.writeHead(200, { 'Content-Type': 'text/plain' });
+                oldRes.end('');
+            }
             pendingResponses.push(res);
             req.on('close', () => {
                 const idx = pendingResponses.indexOf(res);
