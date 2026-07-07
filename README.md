@@ -31,3 +31,7 @@ A native open-source plugin for the [Antigravity CLI](https://github.com/google-
 ## Usage
 
 The included `slack-bridge` skill automatically instructs your agents to use the Waiter script (`scripts/waiter.js`) to pause execution and the Emitter scripts (`scripts/end_of_turn_tts.py`) to send audio responses.
+
+## Roadmap
+
+*   **TTS Engine Abstraction**: Currently, the TTS scripts assume a local `Kokoro-82M` python environment. Future feature branches will abstract this to support plug-and-play TTS models (e.g., OpenAI TTS, ElevenLabs, or system-native TTS) via environment variables.
