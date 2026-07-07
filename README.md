@@ -1,6 +1,8 @@
 # Antigravity Slack Bridge
 
-A native open-source plugin for the [Antigravity CLI](https://github.com/google-antigravity/antigravity-cli) that enables the **Direct Brain Architecture**: seamless, bidirectional Slack communication and Text-to-Speech (TTS) between autonomous agents and human operators.
+A native open-source plugin for Antigravity that enables the **Direct Brain Architecture**: seamless, bidirectional Slack communication and Text-to-Speech (TTS) between autonomous agents and human operators.
+
+> **Compatibility note:** This plugin was built and run with **Antigravity Desktop**. The installation command below uses the `agy` CLI, but the runtime paths in this repository are workspace-relative rather than Desktop-specific, so any Antigravity environment that installs the plugin under `plugins/agy-slack-bridge` should use the same setup.
 
 ## Features
 - **Persistent Connection**: Uses Slack Socket Mode to bypass firewalls and maintain a 24/7 connection.
@@ -23,7 +25,7 @@ A native open-source plugin for the [Antigravity CLI](https://github.com/google-
    SLACK_API_KEY=xoxb-...
    SLACK_TTS_CHANNEL=C01234567
    ```
-5. Run the background daemon:
+5. Run the background daemon from the workspace root:
    ```bash
    node plugins/agy-slack-bridge/scripts/daemon.js
    ```
