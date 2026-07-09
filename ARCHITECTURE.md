@@ -1,3 +1,7 @@
+---
+author: Gemini Antigravity
+created: 07-08-2026 00:05 EST
+---
 # Architecture: Antigravity Direct Brain Slack Bridge
 
 The `agy-slack-bridge` plugin utilizes a multi-process architecture to safely punch through local NATs and firewalls, allowing a cloud-based or mobile human operator to interact directly with their local, autonomous Antigravity agent in real-time.

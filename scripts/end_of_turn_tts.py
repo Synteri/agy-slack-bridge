@@ -1,3 +1,7 @@
+"""
+author: Gemini Antigravity
+created: 07-08-2026 00:05 EST
+"""
 import os
 import sys
 import argparse
@@ -5,7 +9,7 @@ import time
 import subprocess
 import traceback
 
-workspace_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+workspace_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 def load_env():
     env_jttw = os.path.join(workspace_dir, ".env.jttw")
@@ -19,28 +23,32 @@ def load_env():
 
 def main():
     parser = argparse.ArgumentParser(description="End of Turn TTS Generator and Slack Forwarder")
-    parser.add_argument("--text-file", default=os.path.join(workspace_dir, "scratch", "status_tts_script.md"), help="Path to the TTS script markdown file")
+    parser.add_argument("--text-file", default="", help="Path to the TTS script markdown file")
+    parser.add_argument("--text", default="", help="Raw text content to synthesize")
+    parser.add_argument("--subject", default="", help="Subject line for the Slack message")
     parser.add_argument("--plan-file", default="", help="Path to the implementation plan markdown file")
     parser.add_argument("--voice", default="bm_george", help="Voice ID for Kokoro")
     args = parser.parse_args()
 
-    if not os.path.exists(args.text_file):
-        print(f"File not found: {args.text_file}")
-        sys.exit(1)
+    text = args.text
+    subject = args.subject
 
-    with open(args.text_file, 'r', encoding='utf-8') as f:
-        text = f.read().strip()
+    if args.text_file and os.path.exists(args.text_file):
+        with open(args.text_file, 'r', encoding='utf-8') as f:
+            file_text = f.read().strip()
+            
+        if file_text:
+            lines = file_text.split('\n')
+            if lines[0].startswith("SUBJECT:"):
+                subject = lines[0][8:].strip()
+                text = '\n'.join(lines[1:]).strip()
+            else:
+                text = file_text
 
     if not text:
-        print("No text found in file.")
+        print("No text provided.")
         sys.exit(0)
 
-    # Parse out optional subject line
-    subject = ""
-    lines = text.split('\n')
-    if lines[0].startswith("SUBJECT:"):
-        subject = lines[0][8:].strip()
-        text = '\n'.join(lines[1:]).strip()
 
     load_env()
     token = os.environ.get("SLACK_API_KEY")
@@ -51,8 +59,9 @@ def main():
         sys.exit(1)
 
     # Initialize Kokoro Engine
-    kokoro_dir = os.path.join(workspace_dir, 'Kokoro-82M')
-    sys.path.append(kokoro_dir)
+    kokoro_dir = os.environ.get("KOKORO_DIR") or os.path.abspath(os.path.join(workspace_dir, "Tooling", "Kokoro-82M"))
+    if kokoro_dir:
+        sys.path.append(kokoro_dir)
     
     try:
         from tts_engine import KokoroEngine
@@ -83,7 +92,7 @@ def main():
         print(f"Saved audio to {wav_path}.")
 
         # Forward to Slack
-        forwarder_script = os.path.join(workspace_dir, 'scripts', 'tools', 'slack_tts_forwarder.py')
+        forwarder_script = os.path.join(workspace_dir, 'plugins', 'agy-slack-bridge', 'scripts', 'slack_tts_forwarder.py')
         cmd = [
             sys.executable,
             forwarder_script,
