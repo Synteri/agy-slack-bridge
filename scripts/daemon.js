@@ -133,17 +133,19 @@ const server = http.createServer((req, res) => {
     }
 });
 
-(async () => {
-    try {
-        server.listen(daemonPort, () => {
-            console.log(`Daemon HTTP server running on port ${daemonPort}`);
-        });
-        await socketModeClient.start();
-        console.log('Slack Direct Brain Daemon is connected and running.');
-    } catch (e) {
-        console.error('Failed to start:', e);
-    }
-})();
+if (require.main === module) {
+    (async () => {
+        try {
+            server.listen(daemonPort, () => {
+                console.log(`Daemon HTTP server running on port ${daemonPort}`);
+            });
+            await socketModeClient.start();
+            console.log('Slack Direct Brain Daemon is connected and running.');
+        } catch (e) {
+            console.error('Failed to start:', e);
+        }
+    })();
+}
 
 // --- TTS Queue Processor ---
 const ttsQueue = [];
@@ -154,7 +156,7 @@ if (fs.existsSync(ttsQueuePath)) {
     lastProcessedLine = fs.readFileSync(ttsQueuePath, 'utf-8').split('\n').filter(Boolean).length;
 }
 
-setInterval(() => {
+const ttsInterval = setInterval(() => {
     if (fs.existsSync(ttsQueuePath)) {
         const lines = fs.readFileSync(ttsQueuePath, 'utf-8').split('\n').filter(Boolean);
         if (lines.length > lastProcessedLine) {
@@ -191,3 +193,13 @@ function pumpTTSQueue() {
         pumpTTSQueue();
     });
 }
+
+module.exports = {
+    server,
+    messageQueue,
+    pendingResponses,
+    socketModeClient,
+    downloadsDir,
+    daemonPort,
+    ttsInterval
+};
