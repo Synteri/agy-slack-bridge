@@ -13,7 +13,7 @@ A native open-source plugin for the [Antigravity CLI](https://github.com/google-
 > ### 🚀 Need Custom AI Agent Solutions?
 > **OVS Intelligence LLC** builds enterprise-grade multi-agent systems, automated EHR integrations, custom voice/TTS pipelines, and Slack-based human-in-the-loop orchestrations.
 > 
-> *   **Looking to hire or consult?** Contact us at [consulting@ovsintelligence.com](mailto:consulting@ovsintelligence.com) or visit [ovsintelligence.com](https://ovsintelligence.com).
+> *   **Looking to hire or consult?** Contact us at [architect@ovsintelligence.com](mailto:architect@ovsintelligence.com) or visit [ovsintelligence.com](https://ovsintelligence.com).
 
 ---
 
