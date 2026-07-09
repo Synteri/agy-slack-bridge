@@ -1,3 +1,7 @@
+"""
+author: Gemini Antigravity
+created: 07-08-2026 00:05 EST
+"""
 # slack_tts_forwarder.py — forwards Kokoro TTS audio to Slack
 # SLACK_TTS_BOT_TOKEN — env var for Slack bot token (xoxb-...)
 # SLACK_TTS_CHANNEL   — env var for Slack channel ID (e.g. C0123456789)

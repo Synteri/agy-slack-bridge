@@ -1,4 +1,6 @@
 ---
+author: Gemini Antigravity
+created: 07-08-2026 00:05 EST
 name: slack-bridge
 description: "Instructions for using the Direct Brain Slack architecture to communicate with the human operator."
 trigger: /slack-bridge

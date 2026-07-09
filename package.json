@@ -1,0 +1,21 @@
+{
+  "name": "agy-slack-bridge",
+  "version": "1.0.0",
+  "description": "An Antigravity plugin enabling bidirectional Slack communication and TTS.",
+  "main": "scripts/daemon.js",
+  "bin": {
+    "agy-slack-bridge": "bin/index.js"
+  },
+  "scripts": {
+    "start": "node scripts/daemon.js",
+    "test": "jest",
+    "lint": "eslint scripts/**/*.js"
+  },
+  "dependencies": {
+    "@slack/socket-mode": "^1.3.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

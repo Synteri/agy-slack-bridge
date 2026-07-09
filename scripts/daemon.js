@@ -2,25 +2,55 @@ const { SocketModeClient } = require('@slack/socket-mode');
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const https = require('https');
+const { spawn } = require('child_process');
 
-const envPath = path.join(__dirname, '..', '.env.jttw');
-const envContent = fs.readFileSync(envPath, 'utf-8');
-const envVars = {};
-envContent.split('\n').forEach(line => {
-    const parts = line.trim().split('=');
-    if (parts.length >= 2) {
-        envVars[parts[0]] = parts.slice(1).join('=');
+// Load dotenv configuration if available
+try {
+    require('dotenv').config();
+} catch (e) {}
+
+// Fallback manual parser for .env or .env.jttw if process.env values are not set
+if (!process.env.SLACK_APP_TOKEN) {
+    const workspaceDir = path.resolve(__dirname, '..', '..', '..');
+    const fallbackPaths = [
+        path.join(workspaceDir, '.env'),
+        path.join(workspaceDir, '.env.jttw'),
+        path.join(__dirname, '..', '.env')
+    ];
+    for (const envFilePath of fallbackPaths) {
+        if (fs.existsSync(envFilePath)) {
+            try {
+                const envContent = fs.readFileSync(envFilePath, 'utf-8');
+                envContent.split('\n').forEach(line => {
+                    const trimmed = line.trim();
+                    if (trimmed && !trimmed.startsWith('#')) {
+                        const parts = trimmed.split('=');
+                        if (parts.length >= 2) {
+                            const key = parts[0].trim();
+                            const val = parts.slice(1).join('=').trim();
+                            if (!process.env[key]) {
+                                process.env[key] = val;
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.warn(`Failed to read env file at ${envFilePath}:`, e.message);
+            }
+        }
     }
-});
+}
 
-const appToken = envVars['SLACK_APP_TOKEN'];
-const botToken = envVars['SLACK_API_KEY'];
-const channelId = envVars['SLACK_TTS_CHANNEL'];
+const appToken = process.env.SLACK_APP_TOKEN;
+const botToken = process.env.SLACK_API_KEY || process.env.SLACK_BOT_TOKEN;
+const channelId = process.env.SLACK_TTS_CHANNEL;
+const daemonPort = parseInt(process.env.DAEMON_PORT || '14321', 10);
 
 const socketModeClient = new SocketModeClient({ appToken });
+
 const messageQueue = [];
 const pendingResponses = [];
-const https = require('https');
 
 const downloadsDir = path.join(__dirname, '..', 'scratch', 'slack_downloads');
 if (!fs.existsSync(downloadsDir)) {
@@ -67,6 +97,7 @@ socketModeClient.on('message', async ({ event, body, ack }) => {
             }
         }
         
+        // Use HTTP polling system instead of exec inject
         if (pendingResponses.length > 0) {
             const pendingResponse = pendingResponses.shift();
             pendingResponse.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -104,8 +135,8 @@ const server = http.createServer((req, res) => {
 
 (async () => {
     try {
-        server.listen(14321, () => {
-            console.log('Daemon HTTP server running on port 14321');
+        server.listen(daemonPort, () => {
+            console.log(`Daemon HTTP server running on port ${daemonPort}`);
         });
         await socketModeClient.start();
         console.log('Slack Direct Brain Daemon is connected and running.');
@@ -113,3 +144,50 @@ const server = http.createServer((req, res) => {
         console.error('Failed to start:', e);
     }
 })();
+
+// --- TTS Queue Processor ---
+const ttsQueue = [];
+let isProcessingTTS = false;
+const ttsQueuePath = process.env.TTS_QUEUE_PATH || path.join(__dirname, '..', '..', '..', 'scratch', 'tts_queue.jsonl');
+let lastProcessedLine = 0;
+if (fs.existsSync(ttsQueuePath)) {
+    lastProcessedLine = fs.readFileSync(ttsQueuePath, 'utf-8').split('\n').filter(Boolean).length;
+}
+
+setInterval(() => {
+    if (fs.existsSync(ttsQueuePath)) {
+        const lines = fs.readFileSync(ttsQueuePath, 'utf-8').split('\n').filter(Boolean);
+        if (lines.length > lastProcessedLine) {
+            for (let i = lastProcessedLine; i < lines.length; i++) {
+                try {
+                    ttsQueue.push(JSON.parse(lines[i]));
+                } catch(e) {}
+            }
+            lastProcessedLine = lines.length;
+            pumpTTSQueue();
+        }
+    }
+}, 2000);
+
+function pumpTTSQueue() {
+    if (isProcessingTTS || ttsQueue.length === 0) return;
+    isProcessingTTS = true;
+    const task = ttsQueue.shift();
+    
+    const pythonExe = process.env.KOKORO_PYTHON_PATH || 'python';
+    const scriptPath = path.join(__dirname, 'end_of_turn_tts.py');
+    const args = [scriptPath, '--text', task.text];
+    if (task.subject) args.push('--subject', task.subject);
+    if (task.plan_file) args.push('--plan-file', task.plan_file);
+    
+    console.log(`[TTS] Spawning generation for subject: ${task.subject || 'No Subject'}`);
+    const proc = spawn(pythonExe, args);
+    proc.stdout.on('data', data => process.stdout.write(`[TTS] ${data}`));
+    proc.stderr.on('data', data => process.stderr.write(`[TTS ERR] ${data}`));
+    
+    proc.on('close', (code) => {
+        console.log(`[TTS] Process exited with code ${code}`);
+        isProcessingTTS = false;
+        pumpTTSQueue();
+    });
+}

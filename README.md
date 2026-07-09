@@ -1,3 +1,7 @@
+---
+author: Gemini Antigravity
+created: 07-08-2026 00:05 EST
+---
 # Antigravity Slack Bridge
 
 A native open-source plugin for the [Antigravity CLI](https://github.com/google-antigravity/antigravity-cli) that enables the **Direct Brain Architecture**: seamless, bidirectional Slack communication and Text-to-Speech (TTS) between autonomous agents and human operators.
