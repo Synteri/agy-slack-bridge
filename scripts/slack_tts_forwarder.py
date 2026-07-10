@@ -21,7 +21,7 @@ def get_upload_url(token, filename, length):
     req = urllib.request.Request(url, headers={
         "Authorization": f"Bearer {token}"
     })
-    with urllib.request.urlopen(req) as r:
+    with urllib.request.urlopen(req, timeout=15) as r:
         return json.loads(r.read())
 
 
@@ -32,8 +32,11 @@ def upload_to_url(upload_url, file_path, content_type="audio/wav"):
     req = urllib.request.Request(upload_url, data=data, method="POST", headers={
         "Content-Type": content_type
     })
-    with urllib.request.urlopen(req) as r:
-        return r.status
+    with urllib.request.urlopen(req, timeout=15) as r:
+        status = r.status
+        if status < 200 or status >= 300:
+            raise urllib.error.HTTPError(upload_url, status, f"Upload failed with status {status}", None, None)
+        return status
 
 
 def complete_upload(token, file_id, channel, title):
@@ -46,7 +49,7 @@ def complete_upload(token, file_id, channel, title):
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     })
-    with urllib.request.urlopen(req) as r:
+    with urllib.request.urlopen(req, timeout=15) as r:
         return json.loads(r.read())
 
 
@@ -57,7 +60,7 @@ def post_text(token, channel, text):
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     })
-    with urllib.request.urlopen(req) as r:
+    with urllib.request.urlopen(req, timeout=15) as r:
         return json.loads(r.read())
 
 

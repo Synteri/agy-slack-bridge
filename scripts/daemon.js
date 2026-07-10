@@ -67,10 +67,18 @@ function downloadFile(url, dest, token) {
                     file.close(resolve);
                 });
             } else {
+                file.destroy();
+                fs.unlink(dest, () => {});
                 reject(new Error(`Failed to download: ${response.statusCode}`));
             }
         });
         request.on('error', (err) => {
+            file.destroy();
+            fs.unlink(dest, () => {});
+            reject(err);
+        });
+        file.on('error', (err) => {
+            file.destroy();
             fs.unlink(dest, () => {});
             reject(err);
         });
@@ -80,31 +88,40 @@ function downloadFile(url, dest, token) {
 socketModeClient.on('message', async ({ event, body, ack }) => {
     try { await ack(); } catch(e) {}
     
-    if (event.channel === channelId && !event.bot_id && !event.subtype) {
-        let msg = `[SLACK_USER_MESSAGE] User says: "${event.text || ''}"\n`;
-        
-        if (event.files && event.files.length > 0) {
-            for (const file of event.files) {
-                if (file.mimetype && file.mimetype.startsWith('image/')) {
-                    const dest = path.join(downloadsDir, Date.now() + '_' + file.name);
-                    try {
-                        await downloadFile(file.url_private_download || file.url_private, dest, botToken);
-                        msg += `[ATTACHED_IMAGE: ${dest}]\n`;
-                    } catch (e) {
-                        console.error('Failed to download image', e);
+    try {
+        if (event && event.channel === channelId && !event.bot_id && !event.subtype) {
+            let msg = `[SLACK_USER_MESSAGE] User says: "${event.text || ''}"\n`;
+            
+            if (event.files && event.files.length > 0) {
+                for (const file of event.files) {
+                    if (file.mimetype && file.mimetype.startsWith('image/')) {
+                        const dest = path.join(downloadsDir, Date.now() + '_' + file.name);
+                        try {
+                            await downloadFile(file.url_private_download || file.url_private, dest, botToken);
+                            msg += `[ATTACHED_IMAGE: ${dest}]\n`;
+                        } catch (e) {
+                            console.error('Failed to download image', e);
+                        }
                     }
                 }
             }
+            
+            // Use HTTP polling system instead of exec inject
+            if (pendingResponses.length > 0) {
+                const pendingResponse = pendingResponses.shift();
+                try {
+                    pendingResponse.writeHead(200, { 'Content-Type': 'text/plain' });
+                    pendingResponse.end(msg);
+                } catch (err) {
+                    console.error('Failed to respond to pending poll request:', err.message);
+                    messageQueue.push(msg);
+                }
+            } else {
+                messageQueue.push(msg);
+            }
         }
-        
-        // Use HTTP polling system instead of exec inject
-        if (pendingResponses.length > 0) {
-            const pendingResponse = pendingResponses.shift();
-            pendingResponse.writeHead(200, { 'Content-Type': 'text/plain' });
-            pendingResponse.end(msg);
-        } else {
-            messageQueue.push(msg);
-        }
+    } catch (error) {
+        console.error('Error processing Slack Socket Mode message:', error);
     }
 });
 
@@ -152,22 +169,44 @@ const ttsQueue = [];
 let isProcessingTTS = false;
 const ttsQueuePath = process.env.TTS_QUEUE_PATH || path.join(__dirname, '..', '..', '..', 'scratch', 'tts_queue.jsonl');
 let lastProcessedLine = 0;
-if (fs.existsSync(ttsQueuePath)) {
-    lastProcessedLine = fs.readFileSync(ttsQueuePath, 'utf-8').split('\n').filter(Boolean).length;
-}
 
-const ttsInterval = setInterval(() => {
-    if (fs.existsSync(ttsQueuePath)) {
-        const lines = fs.readFileSync(ttsQueuePath, 'utf-8').split('\n').filter(Boolean);
+// Enforce Rule 13.2 memory safety limit (10MB)
+const MAX_QUEUE_FILE_SIZE = 10 * 1024 * 1024;
+
+// Asynchronously initialize queue length on startup
+(async () => {
+    try {
+        const stats = await fs.promises.stat(ttsQueuePath);
+        if (stats.size > MAX_QUEUE_FILE_SIZE) {
+            console.warn(`[TTS] Queue log file ${ttsQueuePath} exceeds 10MB limit. Resetting tracker to prevent memory issues.`);
+        }
+        const content = await fs.promises.readFile(ttsQueuePath, 'utf-8');
+        lastProcessedLine = content.split('\n').filter(Boolean).length;
+    } catch (err) {
+        lastProcessedLine = 0;
+    }
+})();
+
+const ttsInterval = setInterval(async () => {
+    try {
+        const stats = await fs.promises.stat(ttsQueuePath);
+        if (stats.size > MAX_QUEUE_FILE_SIZE) {
+            console.warn(`[TTS] Queue log file too large (${stats.size} bytes). Skipping to prevent memory issues.`);
+            return;
+        }
+        const content = await fs.promises.readFile(ttsQueuePath, 'utf-8');
+        const lines = content.split('\n').filter(Boolean);
         if (lines.length > lastProcessedLine) {
             for (let i = lastProcessedLine; i < lines.length; i++) {
                 try {
                     ttsQueue.push(JSON.parse(lines[i]));
-                } catch(e) {}
+                } catch (e) {}
             }
             lastProcessedLine = lines.length;
             pumpTTSQueue();
         }
+    } catch (err) {
+        // Queue file might not exist yet, ignore
     }
 }, 2000);
 

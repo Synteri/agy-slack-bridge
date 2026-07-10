@@ -107,13 +107,15 @@ def main():
             cmd.extend(['--plan-file', args.plan_file])
         
         print(f"Forwarding to Slack channel {channel}...")
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            print(f"Forwarding failed: {result.stderr}")
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                print(f"Forwarding failed: {result.stderr}")
+                sys.exit(1)
+            print("Successfully sent end-of-turn TTS message to Slack.")
+        except subprocess.TimeoutExpired:
+            print("ERROR: Forwarding to Slack timed out after 30 seconds.")
             sys.exit(1)
-            
-        print("Successfully sent end-of-turn TTS message to Slack.")
     except Exception as e:
         print(f"An error occurred: {e}")
         traceback.print_exc()
