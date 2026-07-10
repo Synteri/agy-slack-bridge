@@ -11,17 +11,49 @@ const { spawn } = require('child_process');
 
 console.log('Starting Antigravity Slack Bridge CLI Daemon...');
 
-// Search for a local .env file in the current working directory
-const cwdEnvPath = path.join(process.cwd(), '.env');
-if (fs.existsSync(cwdEnvPath)) {
-    console.log(`Loading environment from ${cwdEnvPath}`);
+// Search for a local .env file in the current working directory, walking up if not found
+let foundEnvPath = null;
+let currentDir = process.cwd();
+while (currentDir) {
+    const checkPath = path.join(currentDir, '.env');
+    const checkPathJttw = path.join(currentDir, '.env.jttw');
+    if (fs.existsSync(checkPath)) {
+        foundEnvPath = checkPath;
+        break;
+    } else if (fs.existsSync(checkPathJttw)) {
+        foundEnvPath = checkPathJttw;
+        break;
+    }
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) break; // Reached root
+    currentDir = parentDir;
+}
+
+if (foundEnvPath) {
+    console.log(`Loading environment from ${foundEnvPath}`);
     try {
-        require('dotenv').config({ path: cwdEnvPath });
+        require('dotenv').config({ path: foundEnvPath });
     } catch (e) {
-        // Fallback if dotenv is not loaded
+        // Fallback manual parse if dotenv is not loaded
+        try {
+            const content = fs.readFileSync(foundEnvPath, 'utf-8');
+            content.split('\n').forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed && !trimmed.startsWith('#')) {
+                    const parts = trimmed.split('=');
+                    if (parts.length >= 2) {
+                        const key = parts[0].trim();
+                        const val = parts.slice(1).join('=').trim();
+                        if (!process.env[key]) {
+                            process.env[key] = val;
+                        }
+                    }
+                }
+            });
+        } catch (err) {}
     }
 } else {
-    console.log('No local .env file found in current directory. Falling back to system environment variables.');
+    console.log('No environment file (.env or .env.jttw) found in current workspace tree. Falling back to system environment variables.');
 }
 
 // Locate the daemon script inside the package
